@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "damage_info",
+  "name": "HybridDamageInfo",
+  "kind": "optional_plugin",
+  "version": "",
+  "build_revision": "",
+  "upstream_repo": "HybridMind1337/CS2-Hybrid-DamageInfo",
+  "upstream_revision": "36816a60cadf4d1f795ca56a74093d8e08f29cbe",
+  "license": "GPL-2.0",
+  "compatibility": {"os": ["linux"], "arch": ["x86_64"], "dotnet_target": "net10.0", "counterstrikesharp_min": 371, "counterstrikesharp_max_tested": 371},
+  "required_paths": ["addons/counterstrikesharp/plugins/HybridDamageInfo/HybridDamageInfo.dll", "addons/counterstrikesharp/plugins/HybridDamageInfo/lang/en.json"],
+  "dependencies": [],
+  "restart_policy": "process",
+  "persistent_paths": ["addons/counterstrikesharp/configs/plugins/HybridDamageInfo/HybridDamageInfo.json"]
+}

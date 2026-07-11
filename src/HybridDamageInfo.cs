@@ -2,6 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
 using CounterStrikeSharp.API.Modules.Commands;
+using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
 using System.Text.Json;
 
@@ -10,22 +11,25 @@ namespace HybridDamageInfo;
 [MinimumApiVersion(200)]
 public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfoConfig>
 {
-    public override string ModuleName    => "Hybrid-DamageInfo";
-    public override string ModuleVersion => "5.0.0";
-    public override string ModuleAuthor  => "HybridMind";
+    public override string ModuleName => "Hybrid-DamageInfo";
+    public override string ModuleVersion => GetType().Assembly.GetName().Version?.ToString(3) ?? "unknown";
+    public override string ModuleAuthor => "HybridMind";
     public override string ModuleDescription => "Clean and compact damage info for CS2.";
 
     public HybridDamageInfoConfig Config { get; set; } = new();
 
-    private readonly DamageTracker           _tracker = new();
-    private readonly PlayerPreferenceManager _prefs   = new();
-    private Dictionary<string, string>       _lang    = new();
-    private CCSGameRules?                    _gameRules;
+    private readonly DamageTracker _tracker = new();
+    private readonly PlayerPreferenceManager _prefs = new();
+    private Dictionary<string, string> _lang = new();
+    private CCSGameRules? _gameRules;
+    private CounterStrikeSharp.API.Modules.Timers.Timer? _hudTimer;
 
     private string Prefix => $" {ChatColors.Red}[DI]{ChatColors.Default}";
 
     public void OnConfigParsed(HybridDamageInfoConfig config)
     {
+        config.HUDDisplaySeconds = Math.Clamp(config.HUDDisplaySeconds, 0.25f, 15.0f);
+        config.MinDamageToShow = Math.Clamp(config.MinDamageToShow, 0, 5000);
         Config = config;
         LoadLanguage(config.Language);
     }
@@ -33,7 +37,6 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
     public override void Load(bool hotReload)
     {
         RegisterListener<Listeners.OnMapStart>(OnMapStart);
-        RegisterListener<Listeners.OnTick>(OnTick);
 
         RegisterEventHandler<EventPlayerHurt>(OnPlayerHurt);
         RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath);
@@ -42,10 +45,19 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
         RegisterEventHandler<EventRoundStart>(OnRoundStart);
         RegisterEventHandler<EventPlayerDisconnect>(OnPlayerDisconnect);
 
-        AddCommand("css_di",         "Hybrid-DamageInfo menu/toggle", OnDiCommand);
+        AddCommand("css_di", "Hybrid-DamageInfo menu/toggle", OnDiCommand);
         AddCommand("css_damageinfo", "Hybrid-DamageInfo menu/toggle", OnDiCommand);
 
+        _hudTimer = AddTimer(0.1f, RefreshHud, TimerFlags.REPEAT);
+
         OnMapStart(string.Empty);
+    }
+
+    public override void Unload(bool hotReload)
+    {
+        _hudTimer?.Kill();
+        _hudTimer = null;
+        _tracker.ClearRound();
     }
 
     private void OnMapStart(string mapName)
@@ -59,7 +71,7 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
 
     private bool IsWarmup() => _gameRules?.WarmupPeriod ?? false;
 
-    private void OnTick()
+    private void RefreshHud()
     {
         if (IsWarmup()) return;
 
@@ -92,7 +104,7 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
         if (player == null || !player.IsValid) return;
 
         ulong steamId = player.SteamID;
-        string arg    = info.ArgCount > 1 ? info.ArgByIndex(1).Trim() : "";
+        string arg = info.ArgCount > 1 ? info.ArgByIndex(1).Trim() : "";
 
         if (string.IsNullOrEmpty(arg))
         {
@@ -130,6 +142,7 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
         var player = @event.Userid;
         if (player == null || !player.IsValid) return HookResult.Continue;
 
+        _tracker.RemoveSlot(player.Slot);
         var data = _tracker.GetOrCreate(player.Slot);
         data.IsDataShown = false;
         _tracker.CacheName(player.Slot, player.PlayerName);
@@ -142,7 +155,7 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
         if (IsWarmup()) return HookResult.Continue;
 
         var attacker = @event.Attacker;
-        var victim   = @event.Userid;
+        var victim = @event.Userid;
 
         if (attacker == null || !attacker.IsValid || victim == null || !victim.IsValid)
             return HookResult.Continue;
@@ -156,7 +169,7 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
         if (friendlyFire && !Config.ShowFriendlyFire) return HookResult.Continue;
 
         _tracker.CacheName(attacker.Slot, attacker.PlayerName);
-        _tracker.CacheName(victim.Slot,   victim.PlayerName);
+        _tracker.CacheName(victim.Slot, victim.PlayerName);
 
         _tracker.RecordDamage(attacker.Slot, victim.Slot, @event.DmgHealth, @event.DmgArmor, @event.Hitgroup, friendlyFire);
 
@@ -168,24 +181,24 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
 
     private void ShowLiveHud(CCSPlayerController attacker, string victimName, int attackerSlot, int victimSlot, bool ff)
     {
-        var data   = _tracker.GetOrCreate(attackerSlot);
+        var data = _tracker.GetOrCreate(attackerSlot);
         var recent = data.RecentDamages.TryGetValue(victimSlot, out var r) ? r : null;
         if (recent == null) return;
 
-        string ffTag   = ff ? " <font color='#ffcc00'>[FF]</font>" : "";
-        string hgTag   = !string.IsNullOrEmpty(recent.LastHitgroup) ? $"  <font color='#aaaaaa'>[{recent.LastHitgroup}]</font>" : "";
+        string ffTag = ff ? " <font color='#ffcc00'>[FF]</font>" : "";
+        string hgTag = Config.ShowHitgroup && !string.IsNullOrEmpty(recent.LastHitgroup) ? $"  <font color='#aaaaaa'>[{recent.LastHitgroup}]</font>" : "";
 
         data.CenterTimer?.Kill();
         data.CenterTimer = null;
 
         data.CenterMessage =
-            $"<font color='#ffffff'><b>{victimName}</b></font>{ffTag}<br>" +
+            $"<font color='#ffffff'><b>{DisplaySafety.EncodeHtml(victimName)}</b></font>{ffTag}<br>" +
             $"<font color='#ff4444'>-{recent.TotalDamage} HP</font>{hgTag}";
 
         data.CenterTimer = AddTimer(Config.HUDDisplaySeconds, () =>
         {
             data.CenterMessage = null;
-            data.CenterTimer   = null;
+            data.CenterTimer = null;
         });
     }
 
@@ -197,7 +210,7 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
         if (victim == null || !victim.IsValid) return HookResult.Continue;
 
         var attacker = @event.Attacker;
-        var data     = _tracker.GetOrCreate(victim.Slot);
+        var data = _tracker.GetOrCreate(victim.Slot);
         data.VictimKillerSlot = attacker != null && attacker.IsValid ? attacker.Slot : -1;
 
         if (!victim.IsBot)
@@ -224,29 +237,51 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
             .OrderByDescending(e => e.Value.DamageHP)
             .ToList();
 
-        // ── Chat — 1 компактен ред ────────────────────────────────────────
         if (Config.ShowChatMessage && pref.ChatEnabled)
         {
-            var killer = takenDamage.FirstOrDefault();
-            if (killer.Value != null)
+            if (Config.CompactDeathMessage)
             {
-                string name  = _tracker.GetName(killer.Key);
-                string hs    = killer.Value.Headshot ? $" {ChatColors.Yellow}[HS]{ChatColors.Default}" : "";
-                string ff    = killer.Value.IsFriendlyFire ? $" {ChatColors.Yellow}[FF]{ChatColors.Default}" : "";
-                victim.PrintToChat(
-                    $"{Prefix}{ff} ☠ {ChatColors.LightRed}{name}{ChatColors.Default} " +
-                    $"{ChatColors.Yellow}{killer.Value.DamageHP} HP{ChatColors.Default} · " +
-                    $"{killer.Value.Hits} hit(s){hs}");
+                var killer = takenDamage.FirstOrDefault();
+                if (killer.Value != null)
+                {
+                    string name = _tracker.GetName(killer.Key);
+                    string hs = killer.Value.Headshot ? $" {ChatColors.Yellow}[HS]{ChatColors.Default}" : "";
+                    string ff = killer.Value.IsFriendlyFire ? $" {ChatColors.Yellow}[FF]{ChatColors.Default}" : "";
+                    victim.PrintToChat(
+                        $"{Prefix}{ff} ☠ {ChatColors.LightRed}{name}{ChatColors.Default} " +
+                        $"{ChatColors.Yellow}{killer.Value.DamageHP} HP{ChatColors.Default} · " +
+                        $"{killer.Value.Hits} hit(s){hs}");
+                }
+            }
+            else
+            {
+                foreach (var entry in takenDamage)
+                    victim.PrintToChat($"{Prefix} Received {entry.Value.DamageHP} HP from {_tracker.GetName(entry.Key)} ({entry.Value.Hits} hit(s))");
             }
 
             if (givenDamage.Count > 0)
             {
-                int totalHp = givenDamage.Sum(e => e.Value.DamageHP);
-                string targets = string.Join(" · ", givenDamage.Select(e =>
-                    $"{ChatColors.Green}{_tracker.GetName(e.Key)}{ChatColors.Default} " +
-                    $"{ChatColors.Yellow}{e.Value.DamageHP}{ChatColors.Default}HP"));
-                victim.PrintToChat($"{Prefix} ▸ {targets}");
+                if (Config.CompactDeathMessage)
+                {
+                    string targets = string.Join(" · ", givenDamage.Select(e =>
+                        $"{ChatColors.Green}{_tracker.GetName(e.Key)}{ChatColors.Default} " +
+                        $"{ChatColors.Yellow}{e.Value.DamageHP}{ChatColors.Default}HP"));
+                    victim.PrintToChat($"{Prefix} ▸ {targets}");
+                }
+                else
+                {
+                    foreach (var entry in givenDamage)
+                        victim.PrintToChat($"{Prefix} Dealt {entry.Value.DamageHP} HP to {_tracker.GetName(entry.Key)} ({entry.Value.Hits} hit(s))");
+                }
             }
+        }
+
+        if (Config.ShowConsoleLog)
+        {
+            foreach (var entry in takenDamage)
+                victim.PrintToConsole($"[DamageInfo] Received {entry.Value.DamageHP} HP / {entry.Value.DamageArmor} armor from {_tracker.GetName(entry.Key)} ({entry.Value.Hits} hits)");
+            foreach (var entry in givenDamage)
+                victim.PrintToConsole($"[DamageInfo] Dealt {entry.Value.DamageHP} HP / {entry.Value.DamageArmor} armor to {_tracker.GetName(entry.Key)} ({entry.Value.Hits} hits)");
         }
 
         // ── Death HUD ─────────────────────────────────────────────────────
@@ -257,9 +292,9 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
             if (takenDamage.Count > 0)
             {
                 var killer = takenDamage.First();
-                string name = _tracker.GetName(killer.Key);
-                string hs   = killer.Value.Headshot ? " <font color='#ffdd00'>★ HS</font>" : "";
-                string ff   = killer.Value.IsFriendlyFire ? " <font color='#ffcc00'>[FF]</font>" : "";
+                string name = DisplaySafety.EncodeHtml(_tracker.GetName(killer.Key));
+                string hs = killer.Value.Headshot ? " <font color='#ffdd00'>★ HS</font>" : "";
+                string ff = killer.Value.IsFriendlyFire ? " <font color='#ffcc00'>[FF]</font>" : "";
                 lines.Add($"<font color='#ff4444'>☠</font> <b>{name}</b>{ff} — {killer.Value.DamageHP} HP · {killer.Value.Hits} hit(s){hs}");
             }
 
@@ -268,7 +303,7 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
                 string targets = string.Join(" · ", givenDamage.Take(4).Select(e =>
                 {
                     int remaining = GetRemainingHp(e.Key);
-                    string name   = _tracker.GetName(e.Key);
+                    string name = DisplaySafety.EncodeHtml(_tracker.GetName(e.Key));
                     return $"<b>{name}</b> {e.Value.DamageHP}→{remaining}HP";
                 }));
                 lines.Add($"<font color='#44aaff'>▸</font> {targets}");
@@ -277,13 +312,13 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
             if (lines.Count > 0)
             {
                 data.CenterTimer?.Kill();
-                data.CenterTimer   = null;
+                data.CenterTimer = null;
                 data.CenterMessage = string.Join("<br>", lines);
 
                 data.CenterTimer = AddTimer(Config.HUDDisplaySeconds, () =>
                 {
                     data.CenterMessage = null;
-                    data.CenterTimer   = null;
+                    data.CenterTimer = null;
                 });
             }
         }
@@ -356,7 +391,7 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
         string summary = string.Join(" · ", given.Select(e =>
         {
             string name = _tracker.GetName(e.Key);
-            string hs   = e.Value.Headshot ? "★" : "";
+            string hs = e.Value.Headshot ? "★" : "";
             return $"{ChatColors.Green}{name}{ChatColors.Default} {ChatColors.Yellow}{e.Value.DamageHP}{ChatColors.Default}HP{hs} x{e.Value.Hits}";
         }));
 
@@ -372,8 +407,11 @@ public class HybridDamageInfoPlugin : BasePlugin, IPluginConfig<HybridDamageInfo
     private HookResult OnPlayerDisconnect(EventPlayerDisconnect @event, GameEventInfo info)
     {
         var player = @event.Userid;
-        if (player != null && player.IsValid)
+        if (player != null)
+        {
             _prefs.Remove(player.SteamID);
+            _tracker.RemoveSlot(player.Slot);
+        }
         return HookResult.Continue;
     }
 

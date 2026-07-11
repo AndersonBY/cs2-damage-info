@@ -1,0 +1,18 @@
+{
+  "prefix": "[DamageInfo]",
+  "received.header": "— Получени щети —",
+  "received.entry": "{attacker} нанесе {hp} HP / {armor} Armor ({hits} удар(а)){hitgroups}",
+  "dealt.header": "— Нанесени щети —",
+  "dealt.entry": "Нанесохте {hp} HP / {armor} Armor на {target} ({hits} удар(а)){hitgroups} — {remaining} HP останали",
+  "summary.header": "=== Обобщение на рунда ===",
+  "summary.entry": "→ {target}: {hp} HP / {armor} Armor ({hits} удар(а)){hitgroups}",
+  "leaderboard.header": "=== Класация по щети ===",
+  "leaderboard.entry": "{medal} {name} — {total} HP общо",
+  "toggle.chat.on": "Чат информация за щети: ВКЛ",
+  "toggle.chat.off": "Чат информация за щети: ИЗКЛ",
+  "toggle.hud.on": "HUD информация за щети: ВКЛ",
+  "toggle.hud.off": "HUD информация за щети: ИЗКЛ",
+  "toggle.summary.on": "Обобщение на рунда: ВКЛ",
+  "toggle.summary.off": "Обобщение на рунда: ИЗКЛ",
+  "toggle.usage": "Използване: !di <chat|hud|summary>"
+}
