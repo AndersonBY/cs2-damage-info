@@ -1,0 +1,18 @@
+{
+  "prefix": "[Damage]",
+  "received.header": "— Damage Received —",
+  "received.entry": "{attacker} dealt {hp} HP / {armor} Armor ({hits} hit(s)){hitgroups}",
+  "dealt.header": "— Damage Dealt —",
+  "dealt.entry": "You dealt {hp} HP / {armor} Armor to {target} ({hits} hit(s)){hitgroups} — {remaining} HP left",
+  "summary.header": "=== Round Damage Summary ===",
+  "summary.entry": "→ {target}: {hp} HP / {armor} Armor ({hits} hit(s)){hitgroups}",
+  "leaderboard.header": "=== Damage Leaderboard ===",
+  "leaderboard.entry": "{medal} {name} — {total} HP total",
+  "toggle.chat.on": "Chat damage info: ON",
+  "toggle.chat.off": "Chat damage info: OFF",
+  "toggle.hud.on": "HUD damage info: ON",
+  "toggle.hud.off": "HUD damage info: OFF",
+  "toggle.summary.on": "Round summary: ON",
+  "toggle.summary.off": "Round summary: OFF",
+  "toggle.usage": "Usage: !di <chat|hud|summary>"
+}

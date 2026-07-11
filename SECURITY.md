@@ -1,24 +1,13 @@
 # Security Policy
 
-## Supported Versions
+Please report vulnerabilities through GitHub's private security advisory
+feature for this repository. Do not publish exploit details in a public issue
+before a fix is available.
 
-| Version | Supported |
-|---------|-----------|
-| 3.x     | ✅ Yes     |
-| < 3.0   | ❌ No      |
+Include the affected commit or release, CounterStrikeSharp and .NET versions,
+server OS/architecture, reproduction steps, and relevant sanitized logs. Never
+include Steam tokens, RCON passwords, database credentials, webhook URLs, or
+other secrets.
 
-## Reporting a Vulnerability
-
-If you discover a security vulnerability, **please do not open a public GitHub issue.**
-
-Instead, contact me directly:
-
-- **Discord:** HybridMind
-- **GitHub:** [@HybridMind1337](https://github.com/HybridMind1337)
-
-Please include:
-- Description of the vulnerability
-- Steps to reproduce
-- Potential impact
-
-I will respond as soon as possible and release a fix if confirmed.
+Only the latest MBSifu release line is actively hardened. Upstream releases and
+unreviewed upstream-sync branches are not covered by this policy.

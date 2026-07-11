@@ -1,0 +1,9 @@
+{
+  "toggle.chat.on": "聊天伤害信息：已开启",
+  "toggle.chat.off": "聊天伤害信息：已关闭",
+  "toggle.hud.on": "屏幕伤害信息：已开启",
+  "toggle.hud.off": "屏幕伤害信息：已关闭",
+  "toggle.summary.on": "回合伤害汇总：已开启",
+  "toggle.summary.off": "回合伤害汇总：已关闭",
+  "toggle.usage": "用法：!di <chat|hud|summary>"
+}

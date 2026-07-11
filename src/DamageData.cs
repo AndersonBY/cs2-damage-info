@@ -55,6 +55,23 @@ public class DamageTracker
 
     public IEnumerable<KeyValuePair<int, PlayerData>> All() => _data;
 
+    public void RemoveSlot(int slot)
+    {
+        if (_data.Remove(slot, out var removed))
+            removed.CenterTimer?.Kill();
+
+        _nameCache.Remove(slot);
+
+        foreach (var data in _data.Values)
+        {
+            data.GivenDamage.Remove(slot);
+            data.TakenDamage.Remove(slot);
+            data.RecentDamages.Remove(slot);
+            if (data.VictimKillerSlot == slot)
+                data.VictimKillerSlot = -1;
+        }
+    }
+
     public void RecordDamage(int attackerSlot, int victimSlot, int hp, int armor, int hitgroup, bool friendlyFire)
     {
         if (attackerSlot == victimSlot) return;
@@ -65,7 +82,7 @@ public class DamageTracker
             given = new DamageEntry { IsFriendlyFire = friendlyFire };
             attackerData.GivenDamage[victimSlot] = given;
         }
-        given.DamageHP    += hp;
+        given.DamageHP += hp;
         given.DamageArmor += armor;
         given.Hits++;
         if (hitgroup == 1) given.Headshot = true;
@@ -76,7 +93,7 @@ public class DamageTracker
             taken = new DamageEntry { IsFriendlyFire = friendlyFire };
             victimData.TakenDamage[attackerSlot] = taken;
         }
-        taken.DamageHP    += hp;
+        taken.DamageHP += hp;
         taken.DamageArmor += armor;
         taken.Hits++;
         if (hitgroup == 1) taken.Headshot = true;
@@ -92,26 +109,28 @@ public class DamageTracker
         else
             recent.TotalDamage = hp;
 
-        recent.LastHitgroup   = HitgroupToString(hitgroup);
+        recent.LastHitgroup = HitgroupToString(hitgroup);
         recent.LastDamageTime = DateTime.Now;
     }
 
     public void ClearRound()
     {
+        foreach (var data in _data.Values)
+            data.CenterTimer?.Kill();
         _data.Clear();
         _nameCache.Clear();
     }
 
     public static string HitgroupToString(int hitgroup) => hitgroup switch
     {
-        1  => "Head",
-        2  => "Chest",
-        3  => "Stomach",
-        4  => "L.Arm",
-        5  => "R.Arm",
-        6  => "L.Leg",
-        7  => "R.Leg",
+        1 => "Head",
+        2 => "Chest",
+        3 => "Stomach",
+        4 => "L.Arm",
+        5 => "R.Arm",
+        6 => "L.Leg",
+        7 => "R.Leg",
         10 => "Neck",
-        _  => ""
+        _ => ""
     };
 }

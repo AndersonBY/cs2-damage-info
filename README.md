@@ -1,3 +1,7 @@
+> **MBSifu maintained fork.** This public fork tracks [HybridMind1337/CS2-Hybrid-DamageInfo](https://github.com/HybridMind1337/CS2-Hybrid-DamageInfo) and ships reviewed, reproducible Linux releases for MBSifu and the wider CS2 community. See [MAINTENANCE.md](MAINTENANCE.md) before proposing upstream sync or release changes.
+
+[![CI](https://github.com/AndersonBY/cs2-damage-info/actions/workflows/ci.yml/badge.svg)](https://github.com/AndersonBY/cs2-damage-info/actions/workflows/ci.yml)
+
 # Hybrid-DamageInfo
 
 A [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp) plugin for CS2 that displays damage information to players after death and at round end.
